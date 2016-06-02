@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.cm as cm
 from matplotlib import pyplot as plt
 #from scipy.stats import gaussian_kde
-from select_star_v1 import *
+from utils import *
 
 star_filter  = np.loadtxt('probs_l90_b40_age8.0e9_Z0.01_d20kpc.dat',delimiter = ',', usecols=(0,1,2,3,4)) 
 
