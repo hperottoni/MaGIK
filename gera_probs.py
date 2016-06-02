@@ -78,16 +78,18 @@ def get_probs(isoc_path, isoc_base_name, isoc_ages, isoc_metal, d_seq, field_pat
     :type            gal_l: list of floats
     :type            gal_b: list of floats
     :type        save_path: string
+    
+    obs: stars with high magnitude error's are removed.
     """
     
     for lon in gal_l: # for each given longitude
         for lat in gal_b: # for each given latitude
-            
+             
             # Load field data
             field_name = get_name_field(field_base_name, l = lon, b = lat)
             # TODO: dar um jeito de permitir que os argumentos de np.loadtxt sejam passados nos argumentos da funcao
             field_data = np.loadtxt(field_name, delimiter = ",", skiprows = 1)
-            
+             
             obj_lon = field_data[:,1]
             obj_lat = field_data[:,2]
             obj_mag_g = field_data[:,3]
@@ -96,103 +98,112 @@ def get_probs(isoc_path, isoc_base_name, isoc_ages, isoc_metal, d_seq, field_pat
             obj_mag_g_err = field_data[:,6]
             obj_mag_r_err = field_data[:,7]
             obj_mag_i_err = field_data[:,8]
-            
-for l in gal_l:
+             
+            # Calculate colors from magnitudes
+            obj_cor_gr = obj_mag_g - obj_mag_r
+            obj_cor_gi = obj_mag_g - obj_mag_i
+             
+            # Adopting a color error
+            obj_mag_r_err = obj_mag_r_err/2 # TODO: descobrir porque estamos usando isso
+            obj_cor_gr_err = 0.15*obj_mag_r_err
+             
+            obj_mag_i_err = obj_mag_i_err/2 # TODO: descobrir porque estamos usando isso
+            obj_cor_gi_err = 0.15*obj_mag_i_err
+             
+            # Removing stars with high magnitude error
+            # TODO: fazer este passo diretamente em field_data para nao ter que escrever linha por linha
+            obj_mag_filt_high_error = obj_mag_r_err < 0.2
+            obj_lon = obj_lon[obj_mag_filt_high_error]
+            obj_lat = obj_lat[obj_mag_filt_high_error]
+            obj_mag_g = obj_mag_g[obj_mag_filt_high_error]
+            obj_mag_r = obj_mag_r[obj_mag_filt_high_error]
+            obj_mag_i = obj_mag_i[obj_mag_filt_high_error]
+            obj_mag_g_err = obj_mag_g_err[obj_mag_filt_high_error]
+            obj_mag_r_err = obj_mag_r_err[obj_mag_filt_high_error]
+            obj_mag_i_err = obj_mag_i_err[obj_mag_filt_high_error]           
+            obj_cor_gr = obj_cor_gr[obj_mag_filt_high_error]
+            obj_cor_gi = obj_cor_gi[obj_mag_filt_high_error]
+            obj_cor_gr_err = obj_cor_gr_err[obj_mag_filt_high_error]
+            obj_cor_gi_err = obj_cor_gi_err[obj_mag_filt_high_error]
+             
+            for age in isoc_ages: # for each age
+            	for metal in isoc_metal: # for each metallicity
+                     	    
+            	    # Load isochrone file
+            	    isoc_name = get_name_iso(isoc_base_name,age,metal)
+            	    isoc_data = np.loadtxt(isoc_name) # TODO: dar um jeito de poder passar argumentos para esta funcao
+                     	    
+            	    isoc_mass = isoc_data[:,2]
+            	    isoc_mag_g = isoc_data[:,9]
+            	    isoc_mag_r = isoc_data[:,10]
+            	    isoc_mag_i = isoc_data[:,11]
+                      	    
+            	    # Interpolating isochrone
+            	    isoc_mag_g_interp_fun = interp1d(isoc_mass, isoc_mag_g)
+            	    isoc_mag_r_interp_fun = interp1d(isoc_mass, isoc_mag_r)
+            	    isoc_mag_i_interp_fun = interp1d(isoc_mass, isoc_mag_i)
+                      	    
+            	    isoc_mass = np.linspace(isoc_mass[0], isoc_mass[-1], 10000)
+            	    isoc_mag_g = isoc_mag_g_interp_fun(isoc_mass)
+            	    isoc_mag_r = isoc_mag_g_interp_fun(isoc_mass)
+            	    isoc_mag_i = isoc_mag_g_interp_fun(isoc_mass)
+            	    
+            	    # Calculating isochrone colors
+            	    isoc_cor_gr = isoc_mag_g - isoc_mag_r
+            	    isoc_cor_gi = isoc_mag_g - isoc_mag_i
+                    
+            	    for dist in d_seq: # for each distance
+            	        isoc_mag_r_dist = 5*(np.log10(d)) - 5 + isoc_mag_r
+            	        isoc_mag_i_dist = 5*(np.log10(d)) - 5 + isoc_mag_i
+            	        
+            	        print(age, metal, dist)
+            	        # Obtain the probabilities of each star belonging to the ssp defined by age, metal and dist using the
+            	        # two different colors
+            	        Probs_gr_r = P_multiple(cor_iso = isoc_cor_gr, 
+            	                                cor_obs = obj_cor_gr, 
+            	                                cor_err = obj_cor_gr_err, 
+            	                                mag_iso = isoc_mag_r_dist,
+            	                                mag_obs = obj_mag_r,
+            	                                mag_err = obj_mag_r_err)
+                         	                                
+            	        Probs_gi_i = P_multiple(cor_iso = isoc_cor_gi, 
+            	                                cor_obs = obj_cor_gi, 
+            	                                cor_err = obj_cor_gi_err, 
+            	                                mag_iso = isoc_mag_i_dist,
+            	                                mag_obs = obj_mag_i,
+            	                                mag_err = obj_mag_i_err)
+                        
+                        # This solves a problem with the plot
+            	        Probs_gr_r_min = (Probs_gr_r[Probs_gr_r != 0]).min()
+            	        for k in range(len(Probs_gr_r)):
+            	            if Probs_gr_r[k] == 0: Probs_gr_r = Probs_gr_r_min
+            	            
+            	        Probs_gi_i_min = (Probs_gi_i[Probs_gi_i != 0]).min()
+            	        for k in range(len(Probs_gi_i)):
+            	            if Probs_gi_i[k] == 0: Probs_gi_i = Probs_gi_i_min
+            	        
+            	        # Normalizing the Probs
+            	        Probs_gr_r = Probs_gr_r/Probs_gr_r.max()
+            	        Probs_gi_i = Probs_gi_i/Probs_gi_i.max()
+            	        
+            	        # Preparing data to be saved
+            	        save_data = np.zeros((len(Probs_gr_r), 9))
+            	        save_data[:,0] = obj_lon
+            	        save_data[:,1] = obj_lat
+            	        save_data[:,2] = obj_mag_r
+            	        save_data[:,3] = obj_mag_r_err
+            	        save_data[:,4] = obj_mag_i
+            	        save_data[:,5] = obj_mag_i_err
+            	        save_data[:,6] = obj_cor_gr
+            	        save_data[:,7] = obj_cor_gi
+            	        save_data[:,8] = Probs_gr_r
+            	        save_data[:,9] = Probs_gi_i
+            	        
+            	        # Saving data
+            	        save_filename = save_path+'probs_l{0}_b{1}_age{2}e9_Z{3}_d{4}kpc.dat'.format(l,b,ages_i/1e9,metal_j,d/1000)
 
-    for b in gal_b:
-
-		field_name = 'field0.dat' 
-		data = np.loadtxt(field_name, delimiter = ',',skiprows=1)
-
-
-		#objid,l,b,g,r,i,psfMagErr_g,psfMagErr_r,psfMagErr_i
-		
-		Longitude = data[:,1]
-		Latitude  = data[:,2]
-		Mag_g = data[:,3]
-		Mag_r = data[:,4]
-		Mag_i = data[:,5]
-
-		err_Mag_g = data[:,6]
-		err_Mag_r = data[:,7]
-		err_Mag_i = data[:,8]
-		Cor_obs = Mag_g-Mag_r
-
-		for i in range(len(ages)):
-
-			for j in range(len(metal)):
-
-				ages_i  = ages[i]
-				metal_j = metal[j]
-
-				iso_name = 'iso_12.00e9.dat'
-		
-				data_iso = np.loadtxt(iso_name)
-				
-				m_iso     = data_iso[:,2]
-				mag_iso_g = data_iso[:,9]
-				mag_iso_r = data_iso[:,10]
-				#cor_iso   = mag_iso_g-mag_iso_r
-				
-				interp_mag_g = interp1d(m_iso, mag_iso_g)
-				interp_mag_r = interp1d(m_iso, mag_iso_r)
-
-				m_iso = np.linspace(m_iso[0],m_iso[-1],10000)
-				mag_iso_g = interp_mag_g(m_iso)
-				mag_iso_r = interp_mag_r(m_iso)	
-				cor_iso   = mag_iso_g-mag_iso_r
-				
-
-				for d in d_seq:
-					
-					mag_g = Mag_g
-					mag_r = Mag_r
-					mag_i = Mag_i
-					latitude  = Latitude
-					longitude = Longitude					
-
-					err_mag_g = err_Mag_g
-					err_mag_r = err_Mag_r
-					err_mag_i = err_Mag_i
-					cor_obs   = Cor_obs
-
-
-					Mag_iso_r = 5*(np.log10(d)) - 5 + mag_iso_r
-					mag_err = err_mag_r
-					mag_filt = mag_err < 0.2
-
-					longitude = longitude[mag_filt]
-					latitude  = latitude[mag_filt]
-					mag_err = mag_err[mag_filt]
-					mag_err = mag_err/2.
-					mag_r = mag_r[mag_filt]
-					cor_obs = cor_obs[mag_filt]
-					cor_err = 0.15*mag_err
-
-
-					print(ages_i,metal_j,d)
-
-					Probs = P_multiple(cor_iso, cor_obs, cor_err, Mag_iso_r, mag_r, mag_err, m_iso, a = 2.7)
-
-					P_min = (Probs[Probs != 0]).min()
-					for k in range(len(Probs)):
-					    if Probs[k] == 0: Probs[k] = P_min
-					Probs = Probs/Probs.max()
-
-
-					save_array = np.zeros((len(Probs), 5))
-					save_array[:,0] = longitude
-					save_array[:,1] = latitude			
-					save_array[:,2] = mag_r
-					save_array[:,3] = cor_obs
-					save_array[:,4] = Probs
-
-					save_filename = 'probs_l{0}_b{1}_age{2}e9_Z{3}_d{4}kpc.dat'.format(l,b,ages_i/1e9,metal_j,d/1000)
-
-					np.savetxt(save_filename, save_array, delimiter = ',')
-
-
-					plt.scatter(cor_obs, mag_r, c = np.log(Probs), cmap = cm.jet, marker='o')
-					plt.plot(cor_iso,Mag_iso_r)
-					plt.gca().invert_yaxis()
-					plt.show()
+                        # Plotting data
+    					plt.scatter(cor_obs, mag_r, c = np.log(Probs), cmap = cm.jet, marker='o')
+    					plt.plot(cor_iso,Mag_iso_r)
+    					plt.gca().invert_yaxis()
+    					plt.show()
