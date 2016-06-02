@@ -203,7 +203,7 @@ def get_probs(isoc_path, isoc_base_name, isoc_ages, isoc_metal, d_seq, field_pat
             	        save_filename = save_path+'probs_l{0}_b{1}_age{2}e9_Z{3}_d{4}kpc.dat'.format(l,b,ages_i/1e9,metal_j,d/1000)
 
                         # Plotting data
-    					plt.scatter(cor_obs, mag_r, c = np.log(Probs), cmap = cm.jet, marker='o')
-    					plt.plot(cor_iso,Mag_iso_r)
-    					plt.gca().invert_yaxis()
-    					plt.show()
+    			        plt.scatter(cor_obs, mag_r, c = np.log(Probs), cmap = cm.jet, marker='o')
+    			        plt.plot(cor_iso,Mag_iso_r)
+    			        plt.gca().invert_yaxis()
+    			        plt.show()
