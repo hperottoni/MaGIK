@@ -1,4 +1,4 @@
-from select_star_v1 import *
+from utils import *
 from scipy.interpolate import interp1d
 import random
 
