@@ -33,7 +33,7 @@ base_name_field = 'field'
 for l in gal_l:
 	
 	for b in gal_b:
-
+		#field_name = get_name_field(path_field+base_name_field,l,b)
 		field_name = 'field0.dat' 
 		data = np.loadtxt(field_name, delimiter = ',',skiprows=1)
 
@@ -49,7 +49,8 @@ for l in gal_l:
 		err_Mag_g = data[:,6]
 		err_Mag_r = data[:,7]
 		err_Mag_i = data[:,8]
-		Cor_obs = Mag_g-Mag_r
+		Cor_obs_gr = Mag_g-Mag_r
+		Cor_obs_gi = Mag_g-Mag_i
 
 		for i in range(len(ages)):
 
@@ -57,7 +58,7 @@ for l in gal_l:
 
 				ages_i  = ages[i]
 				metal_j = metal[j]
-
+				#iso_name = get_name_iso(path+base_name,ages_i,metal_j) 
 				iso_name = 'iso_12.00e9.dat'
 		
 				data_iso = np.loadtxt(iso_name)
@@ -87,7 +88,8 @@ for l in gal_l:
 					err_mag_g = err_Mag_g
 					err_mag_r = err_Mag_r
 					err_mag_i = err_Mag_i
-					cor_obs   = Cor_obs
+					cor_obs_gr   = Cor_obs_gr
+					cor_obs_gi   = Cor_obs_gi
 
 
 					Mag_iso_r = 5*(np.log10(d)) - 5 + mag_iso_r
@@ -99,13 +101,15 @@ for l in gal_l:
 					mag_err = mag_err[mag_filt]
 					mag_err = mag_err/2.
 					mag_r = mag_r[mag_filt]
-					cor_obs = cor_obs[mag_filt]
+					mag_i = mag_i[mag_filt]
+					cor_obs_gr = cor_obs_gr[mag_filt]
+					cor_obs_gi   = Cor_obs_gi[mag_filt]
 					cor_err = 0.15*mag_err
-
+					################################################################
 
 					print(ages_i,metal_j,d)
 
-					Probs = P_multiple(cor_iso, cor_obs, cor_err, Mag_iso_r, mag_r, mag_err, m_iso, a = 2.7)
+					Probs = P_multiple(cor_iso, cor_obs_gr, cor_err, Mag_iso_r, mag_r, mag_err, m_iso, a = 2.7)
 
 					P_min = (Probs[Probs != 0]).min()
 					for k in range(len(Probs)):
@@ -117,7 +121,7 @@ for l in gal_l:
 					save_array[:,0] = longitude
 					save_array[:,1] = latitude			
 					save_array[:,2] = mag_r
-					save_array[:,3] = cor_obs
+					save_array[:,3] = cor_obs_gr
 					save_array[:,4] = Probs
 
 					save_filename = 'probs_l{0}_b{1}_age{2}e9_Z{3}_d{4}kpc.dat'.format(l,b,ages_i/1e9,metal_j,d/1000)
@@ -125,7 +129,7 @@ for l in gal_l:
 					np.savetxt(save_filename, save_array, delimiter = ',')
 
 
-					plt.scatter(cor_obs, mag_r, c = np.log(Probs), cmap = cm.jet, marker='o')
+					plt.scatter(cor_obs_gr, mag_r, c = np.log(Probs), cmap = cm.jet, marker='o')
 					plt.plot(cor_iso,Mag_iso_r)
 					plt.gca().invert_yaxis()
 					plt.show()
