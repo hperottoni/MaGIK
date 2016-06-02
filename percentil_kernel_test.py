@@ -187,7 +187,6 @@ plt.minorticks_on()
 
 
 
-
 plt.savefig('figureb.png', format='png')
 plt.cla()
 plt.clf()
