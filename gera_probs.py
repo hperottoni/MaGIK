@@ -15,7 +15,7 @@ def get_name_iso(base_name,age,metal):
 	:return		: isochronal name
 	:rtype		: string
 	"""
-	return(base_name+'_Z{0}_t{1}e9.dat'.format(metal, age/1e9))
+	return(base_name+'_Z{:.4f}_t{:.2f}e9.dat'.format(metal, age/1e9))
 		
 def get_name_field(base_name,l,b):
 	"""
@@ -36,11 +36,11 @@ def get_name_field(base_name,l,b):
 # Parameters  Iso#
 ############################################
 
-ages = [8e9]#,9e9,10e9]
-metal = [0.01]#,0.02,0.03]
+isoc_ages = [12e9]#,9e9,10e9]
+isoc_metal = [0.0001]#,0.02,0.03]
 d_seq = [20000,60000]
-path = '/'
-base_name = 'isoc'
+isoc_path = '/'
+isoc_base_name = 'isoc'
 
 #####################
 # Parameters  fields#
@@ -48,8 +48,13 @@ base_name = 'isoc'
 
 gal_l = [90]
 gal_b = [40]
-path_field = '/'
-base_name_field = 'field'
+field_path = '/'
+field_base_name = 'field'
+
+#####################
+# Save to#
+############################################
+save_path = '/'
 
 def get_probs(isoc_path, isoc_base_name, isoc_ages, isoc_metal, d_seq, field_path, field_base_name, gal_l, gal_b, save_path):
     """
@@ -145,16 +150,16 @@ def get_probs(isoc_path, isoc_base_name, isoc_ages, isoc_metal, d_seq, field_pat
                       	    
             	    isoc_mass = np.linspace(isoc_mass[0], isoc_mass[-1], 10000)
             	    isoc_mag_g = isoc_mag_g_interp_fun(isoc_mass)
-            	    isoc_mag_r = isoc_mag_g_interp_fun(isoc_mass)
-            	    isoc_mag_i = isoc_mag_g_interp_fun(isoc_mass)
+            	    isoc_mag_r = isoc_mag_r_interp_fun(isoc_mass)
+            	    isoc_mag_i = isoc_mag_i_interp_fun(isoc_mass)
             	    
             	    # Calculating isochrone colors
             	    isoc_cor_gr = isoc_mag_g - isoc_mag_r
             	    isoc_cor_gi = isoc_mag_g - isoc_mag_i
-                    
+
             	    for dist in d_seq: # for each distance
-            	        isoc_mag_r_dist = 5*(np.log10(d)) - 5 + isoc_mag_r
-            	        isoc_mag_i_dist = 5*(np.log10(d)) - 5 + isoc_mag_i
+            	        isoc_mag_r_dist = 5*(np.log10(dist)) - 5 + isoc_mag_r
+            	        isoc_mag_i_dist = 5*(np.log10(dist)) - 5 + isoc_mag_i
             	        
             	        print(age, metal, dist)
             	        # Obtain the probabilities of each star belonging to the ssp defined by age, metal and dist using the
@@ -164,30 +169,32 @@ def get_probs(isoc_path, isoc_base_name, isoc_ages, isoc_metal, d_seq, field_pat
             	                                cor_err = obj_cor_gr_err, 
             	                                mag_iso = isoc_mag_r_dist,
             	                                mag_obs = obj_mag_r,
-            	                                mag_err = obj_mag_r_err)
+            	                                mag_err = obj_mag_r_err,
+                                                m_iso = isoc_mass)
                          	                                
             	        Probs_gi_i = P_multiple(cor_iso = isoc_cor_gi, 
             	                                cor_obs = obj_cor_gi, 
             	                                cor_err = obj_cor_gi_err, 
             	                                mag_iso = isoc_mag_i_dist,
             	                                mag_obs = obj_mag_i,
-            	                                mag_err = obj_mag_i_err)
+            	                                mag_err = obj_mag_i_err,
+                                                m_iso = isoc_mass)
                         
                         # This solves a problem with the plot
             	        Probs_gr_r_min = (Probs_gr_r[Probs_gr_r != 0]).min()
             	        for k in range(len(Probs_gr_r)):
-            	            if Probs_gr_r[k] == 0: Probs_gr_r = Probs_gr_r_min
+            	            if Probs_gr_r[k] == 0: Probs_gr_r[k] = Probs_gr_r_min
             	            
             	        Probs_gi_i_min = (Probs_gi_i[Probs_gi_i != 0]).min()
             	        for k in range(len(Probs_gi_i)):
-            	            if Probs_gi_i[k] == 0: Probs_gi_i = Probs_gi_i_min
+            	            if Probs_gi_i[k] == 0: Probs_gi_i[k] = Probs_gi_i_min
             	        
             	        # Normalizing the Probs
             	        Probs_gr_r = Probs_gr_r/Probs_gr_r.max()
             	        Probs_gi_i = Probs_gi_i/Probs_gi_i.max()
             	        
             	        # Preparing data to be saved
-            	        save_data = np.zeros((len(Probs_gr_r), 9))
+            	        save_data = np.zeros((len(Probs_gr_r), 10))
             	        save_data[:,0] = obj_lon
             	        save_data[:,1] = obj_lat
             	        save_data[:,2] = obj_mag_r
@@ -200,10 +207,21 @@ def get_probs(isoc_path, isoc_base_name, isoc_ages, isoc_metal, d_seq, field_pat
             	        save_data[:,9] = Probs_gi_i
             	        
             	        # Saving data
-            	        save_filename = save_path+'probs_l{0}_b{1}_age{2}e9_Z{3}_d{4}kpc.dat'.format(l,b,ages_i/1e9,metal_j,d/1000)
+            	        save_filename = save_path+'probs_l{0}_b{1}_age{2}e9_Z{3}_d{4}kpc.dat'.format(gal_l,gal_b,age/1e9,metal,dist/1000)
 
                         # Plotting data
-                        plt.scatter(cor_obs, mag_r, c = np.log(Probs), cmap = cm.jet, marker='o')
-                        plt.plot(cor_iso,Mag_iso_r)
+                        plt.scatter(obj_cor_gr, obj_mag_r, c = np.log(Probs_gr_r), cmap = cm.jet, marker='o')
+                        plt.plot(isoc_cor_gr, isoc_mag_r_dist)
                         plt.gca().invert_yaxis()
                         plt.show()
+
+get_probs(  isoc_path=isoc_path, 
+            isoc_base_name=isoc_base_name, 
+            isoc_ages=isoc_ages, 
+            isoc_metal=isoc_metal, 
+            d_seq=d_seq, 
+            field_path=field_path, 
+            field_base_name=field_base_name, 
+            gal_l=gal_l, 
+            gal_b=gal_b, 
+            save_path=save_path)
