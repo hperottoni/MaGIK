@@ -54,7 +54,7 @@ field_base_name = 'field'
 #####################
 # Save to#
 ############################################
-save_path = '/'
+save_path = ''
 
 def get_probs(isoc_path, isoc_base_name, isoc_ages, isoc_metal, d_seq, field_path, field_base_name, gal_l, gal_b, save_path):
     """
@@ -195,20 +195,21 @@ def get_probs(isoc_path, isoc_base_name, isoc_ages, isoc_metal, d_seq, field_pat
             	        
             	        # Preparing data to be saved
             	        save_data = np.zeros((len(Probs_gr_r), 10))
-            	        save_data[:,0] = obj_lon
-            	        save_data[:,1] = obj_lat
-            	        save_data[:,2] = obj_mag_r
-            	        save_data[:,3] = obj_mag_r_err
-            	        save_data[:,4] = obj_mag_i
-            	        save_data[:,5] = obj_mag_i_err
-            	        save_data[:,6] = obj_cor_gr
-            	        save_data[:,7] = obj_cor_gi
+            	        save_data[:,0] = np.round(obj_lon,3)
+            	        save_data[:,1] = np.round(obj_lat, 3)
+            	        save_data[:,2] = np.round(obj_mag_r, 2)
+            	        save_data[:,3] = np.round(obj_mag_r_err,2)
+            	        save_data[:,4] = np.round(obj_mag_i,2)
+            	        save_data[:,5] = np.round(obj_mag_i_err,2)
+            	        save_data[:,6] = np.round(obj_cor_gr,2)
+            	        save_data[:,7] = np.round(obj_cor_gi,2)
             	        save_data[:,8] = Probs_gr_r
             	        save_data[:,9] = Probs_gi_i
             	        
             	        # Saving data
-            	        save_filename = save_path+'probs_l{0}_b{1}_age{2}e9_Z{3}_d{4}kpc.dat'.format(gal_l,gal_b,age/1e9,metal,dist/1000)
-
+            	        save_filename = save_path+'probs_l{0}_b{1}_age{2}e9_Z{3}_d{4}kpc.dat'.format(lon,lat,age/1e9,metal,dist/1000)
+                        np.savetxt(save_filename, save_data, delimiter = ',')
+						
                         # Plotting data
                         plt.scatter(obj_cor_gr, obj_mag_r, c = np.log(Probs_gr_r), cmap = cm.jet, marker='o')
                         plt.plot(isoc_cor_gr, isoc_mag_r_dist)
