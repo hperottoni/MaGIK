@@ -2,192 +2,117 @@ import scipy.ndimage as ndimage
 import numpy as np
 import matplotlib.cm as cm
 from matplotlib import pyplot as plt
-#from scipy.stats import gaussian_kde
 from utils import *
 
-star_filter  = np.loadtxt('probs_l90_b40_age8.0e9_Z0.01_d20kpc.dat',delimiter = ',', usecols=(0,1,2,3,4)) 
+def get_name_probs(base_name, gal_l, gal_b, age, metal, dist):
+    """
+    Returns th name of the probs file for coordinates gal_l, gal_b, and ssp defined by age, metal and dist
+    :param base_name: probs base name file
+    :param     gal_l: galactic longitude of the field in degrees
+    :param     gal_b: galactic latitude of the field in degrees
+    :param       age: age of the ssp in years
+    :param     metal: metallicity (Z) of the ssp
+    :param      dist: distance of the ssp in parsecs
+    :return         : probs filename
 
-min_probs = star_filter[:,4].min()
+    :type  base_name: string
+    :type      gal_l: float
+    :type      gal_b: float
+    :type        age: float
+    :type      metal: float
+    :type       dist: float
+    :rtype          : string
+    """
+    return (base_name+'_l{}_b{}_age{:.1f}e9_Z{:.4f}_d{:.0f}kpc.dat'.format(gal_l, gal_b, age/1e9, metal, dist/1e3))
 
-star_filter_min = star_filter[star_filter[:,4] == min_probs]
-star_filter     = star_filter[star_filter[:,4] != min_probs]
+def field_kernel(probs_base_name, 
+                 probs_path,
+                 gal_l, 
+                 gal_b, 
+                 age, 
+                 metal, 
+                 dist,
+                 color = 'gr',
+                 percentiles = [20,40,60,80,90],
+                 kernels = [10,8,5,4,3,2],
+                 kernel_bg = 40,
+                 bins = 130):
+    
+    # load file containing isochronal likelihoods
+    filename = probs_path + get_name_probs(probs_base_name, gal_l, gal_b, age, metal, dist)
+    probs_data = np.loadtxt(filename, delimiter = ',')
 
-percentis = np.percentile(star_filter[:,4],[20,40,60,80,90])
+    star_gal_l = probs_data[:,0]
+    star_gal_b = probs_data[:,1]
+    star_mag_r = probs_data[:,2]
+    star_mag_r_err = probs_data[:,3]
+    star_mag_i = probs_data[:,4]
+    star_mag_i_err = probs_data[:,5]
+    star_cor_gr = probs_data[:,6]
+    star_cor_gi = probs_data[:,7]
 
-kernels = np.zeros(len(star_filter[:,4]))
-kernels_values = [25,20,15,7,6,5]
+    if color == 'gr':
+        star_probs = probs_data[:,8]
+    elif color == 'gi':
+        star_probs = probs_data[:,9]
 
+    # Create two filters to separate values for which star_probs is minimmum from other values
+    # filter_min is used to represent the background    
+    filter_min = star_probs == star_probs.min()
+    filter_else = star_probs != star_probs.min()
 
-for j in range(len(star_filter[:,4])):
-	if (star_filter[j,4] <= percentis[0]):
-		kernels[j] = kernels_values[0]
+    # obtain percentils
+    percentils = np.percentile(star_probs[filter_else], [20,40,60,80,90])
 
+    # set kernels
+    star_kernel = np.zeros(len(star_probs[filter_else]))
+    for i in range(len(star_probs[filter_else])):
+        if (star_probs[filter_else][i] <= percentils[0]):
+            star_kernel[i] = kernels[0]
 
-for i in range(1,len(percentis)):
-	for j in range(len(star_filter[:,4])):
-		if (star_filter[j,4] > percentis[i-1]) and (star_filter[j,4] <= percentis[i]):
-			kernels[j] = kernels_values[i]
+        elif (star_probs[filter_else][i] > percentils[-1]):
+            star_kernel[i] = kernels[-1]
 
-for j in range(len(star_filter[:,4])):
-	if (star_filter[j,4] > percentis[-1]):
-		kernels[j] = kernels_values[-1]
-		
-h, x, y, p = plt.hist2d(star_filter_min[:,1],star_filter_min[:,0], bins = 130)
+        else:
+            for j in range(1, len(percentils)):
+                if (star_probs[filter_else][i] > percentils[j-1]) and (star_probs[filter_else][i] <= percentils[j]):
+                    star_kernel[i] = kernels[j]
 
-gaussian  = ndimage.gaussian_filter(h, 40)
+    print star_kernel
+    # Background
+    hbg, xbg, ybg, pbg = plt.hist2d(star_gal_l[filter_min], star_gal_b[filter_min], bins = bins)
+    density_field_bg = ndimage.gaussian_filter(hbg, kernel_bg)
+    
+    # Density field
+    density_field = density_field_bg
+    
+    for i in range(len(kernels)):
+        kernel_filter = star_kernel == kernels[i]
+        h, x, y, p = plt.hist2d(star_gal_l[filter_else][kernel_filter], star_gal_b[filter_else][kernel_filter], bins = bins)
+        density_field_i = ndimage.gaussian_filter(h, kernels[i])
+        density_field = density_field + density_field_i
 
+    return density_field
 
-for i in range(len(kernels_values)):
-	
-	star_filteri = star_filter[kernels == kernels_values[i], :]
+gal_l = 90
+gal_b = 40
+age = 12e9
+metal = 0.0001
+dist = 20e3
 
-	h, x, y, p = plt.hist2d(star_filteri[:,1],star_filteri[:,0], bins = 130)
-	gaussian_i  = ndimage.gaussian_filter(h, kernels_values[i])
+density_field = field_kernel(probs_base_name = 'probs',
+                             probs_path = '',
+                             gal_l = gal_l,
+                             gal_b = gal_b,
+                             age = age,
+                             metal = metal,
+                             dist = dist)
 
-	gaussian = gaussian+gaussian_i
-
-
-gaussian = gaussian / (130*130*gaussian.sum())
-print(gaussian.max())
-
-#################################
-hbg, x, y, p = plt.hist2d(star_filter_min[:,1],star_filter_min[:,0], bins = 130)
-
-kernels_values_bg = [15,15,15,15,15,15]
-gaussianbg  = ndimage.gaussian_filter(hbg, 15)
-
-
-for i in range(len(kernels_values)):
-	
-	star_filteri = star_filter[kernels == kernels_values[i], :]
-
-	hbg, x, y, p = plt.hist2d(star_filteri[:,1],star_filteri[:,0], bins = 130)
-	gaussianbg_i  = ndimage.gaussian_filter(hbg, kernels_values_bg[i])
-
-	gaussianbg = gaussianbg+gaussianbg_i
-####################################
-
-
-A_mean, A_sdev = running_mean_sdev(gaussian, nline = 40)
-
-Mean   = gaussian-A_mean
-desvio = (gaussian-A_mean)/A_sdev
-
-print(Mean[15:115, 15:115].max())
-print(Mean[15:115, 15:115].min())
-print(desvio[15:115, 15:115].max())
-print(desvio[15:115, 15:115].min())
-view_xmin = min(star_filter[:,0])
-view_xmax = max(star_filter[:,0])
-view_ymin = min(star_filter[:,1])
-view_ymax = max(star_filter[:,1])
-
-
-
-
-#fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(100,100))
-
-#axes[0, 0].imshow(gaussian, extent=[view_xmin, view_xmax, view_ymin, view_ymax])
-#axes[0, 0].set(title='Weight > 0.7')
-#plt.minorticks_on()
-#plt.grid(True)
-
-#axes[0, 1].imshow(Mean, interpolation='nearest', cmap = plt.cm.cubehelix, extent=[view_xmin, view_xmax, view_ymin, view_ymax])
-#axes[0, 1].set(title='Weight < 0.2')
-#plt.minorticks_on()
-#plt.grid(True)
-
-#axes[0, 2].imshow(desvio, interpolation='nearest', cmap = plt.cm.cubehelix, extent=[view_xmin, view_xmax, view_ymin, view_ymax])
-#axes[0, 2].set(title='Residual')
-#plt.minorticks_on()
-#plt.grid(True)
-
-#axes[1,0].imshow(gaussian, interpolation='nearest', extent=[view_xmin, view_xmax, view_ymin, view_ymax])
-#axes[1,0].set(title='Weight > 0.7')
-#plt.minorticks_on()
-#plt.grid(True)
-
-#axes[1,1].imshow(gaussian, cmap = plt.cm.cubehelix, extent=[view_xmin, view_xmax, view_ymin, view_ymax])
-#axes[1,1].set(title='Weight < 0.2')
-#plt.minorticks_on()
-#plt.grid(True)
-
-#axes[1,2].imshow(gaussian, interpolation='nearest', cmap = plt.cm.cubehelix, extent=[view_xmin, view_xmax, view_ymin, view_ymax])
-#axes[1,2].set(title='Residual')
-#plt.minorticks_on()
-#plt.grid(True)
-##plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=.05, hspace=.1)
-
-##fig.tight_layout()
-#plt.show()
-
-
-
-
-plt.subplots(nrows=3, ncols=2,figsize=(18,14))
-plt.subplots_adjust(left  = 0.1,right = 0.94,bottom = 0.1,top = 0.9,wspace = 0.15,hspace = 0.2)
-
-plt.subplot2grid((2, 3), (0,0))
-plt.imshow(gaussian, cmap = plt.cm.cubehelix, extent=[view_xmin, view_xmax, view_ymin, view_ymax])
+plt.imshow(density_field, cmap = plt.cm.cubehelix)
 plt.yscale('linear')
 plt.ylabel("latitude", fontsize=12)
 plt.xlabel("longitude", fontsize=12)
 plt.title('Filtro')
 plt.grid(True)
 plt.minorticks_on()
-
-plt.subplot2grid((2, 3), (0, 1))
-plt.imshow(Mean, cmap = plt.cm.cubehelix, extent=[view_xmin, view_xmax, view_ymin, view_ymax])
-#plt.yscale('Filtro')
-plt.ylabel("latitude", fontsize=12)
-plt.xlabel("longitude", fontsize=12)
-plt.title('Mean')
-plt.grid(True)
-plt.minorticks_on()
-
-plt.subplot2grid((2, 3), (0,2))
-plt.imshow(desvio, cmap = plt.cm.cubehelix, extent=[view_xmin, view_xmax, view_ymin, view_ymax])
-#plt.yscale('linear')
-plt.ylabel("latitude", fontsize=12)
-plt.xlabel("longitude", fontsize=12)
-plt.title('desvio')
-plt.grid(True)
-plt.minorticks_on()
-
-
-plt.subplot2grid((2, 3), (1, 0))
-plt.imshow(gaussian, extent=[view_xmin, view_xmax, view_ymin, view_ymax])
-#plt.yscale('Mean')
-plt.ylabel("latitude", fontsize=12)
-plt.xlabel("longitude", fontsize=12)
-plt.title('Filtro')
-plt.grid(True)
-plt.minorticks_on()
-
-plt.subplot2grid((2, 3), (1, 1))
-plt.imshow(Mean, extent=[view_xmin, view_xmax, view_ymin, view_ymax])
-#plt.yscale('desvio')
-plt.ylabel("latitude", fontsize=12)
-plt.xlabel("longitude", fontsize=12)
-plt.title('Mean')
-plt.grid(True)
-plt.minorticks_on()
-
-
-
-
-plt.subplot2grid((2, 3), (1, 2))
-plt.imshow(desvio, extent=[view_xmin, view_xmax, view_ymin, view_ymax])
-plt.yscale('linear')
-plt.ylabel("latitude", fontsize=12)
-plt.xlabel("longitude", fontsize=12)
-plt.title('Desvio')
-plt.grid(True)
-plt.minorticks_on()
-
-
-
-plt.savefig('figureb.png', format='png')
-plt.cla()
-plt.clf()
-plt.close()
+plt.show()
