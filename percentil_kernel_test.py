@@ -34,7 +34,7 @@ def field_kernel(probs_base_name,
                  dist,
                  color = 'gr',
                  percentiles = [20,40,60,80,90],
-                 kernels = [10,8,5,4,3,2],
+                 kernels =  [25,20,15,7,6,5],
                  kernel_bg = 40,
                  bins = 130):
     
@@ -60,6 +60,7 @@ def field_kernel(probs_base_name,
     # filter_min is used to represent the background    
     filter_min = star_probs == star_probs.min()
     filter_else = star_probs != star_probs.min()
+    
 
     # obtain percentils
     percentils = np.percentile(star_probs[filter_else], [20,40,60,80,90])
@@ -88,11 +89,15 @@ def field_kernel(probs_base_name,
     
     for i in range(len(kernels)):
         kernel_filter = star_kernel == kernels[i]
+
         h, x, y, p = plt.hist2d(star_gal_l[filter_else][kernel_filter], star_gal_b[filter_else][kernel_filter], bins = bins)
         density_field_i = ndimage.gaussian_filter(h, kernels[i])
         density_field = density_field + density_field_i
 
-    return density_field
+    # Normalizar density_field
+    density_field = density_field / (bins*bins*density_field.sum())
+
+    return density_field, star_gal_b,star_gal_l
 
 gal_l = 90
 gal_b = 40
@@ -100,7 +105,7 @@ age = 12e9
 metal = 0.0001
 dist = 20e3
 
-density_field = field_kernel(probs_base_name = 'probs',
+density_field,star_gal_b,star_gal_l = field_kernel(probs_base_name = 'probs',
                              probs_path = '',
                              gal_l = gal_l,
                              gal_b = gal_b,
@@ -108,11 +113,50 @@ density_field = field_kernel(probs_base_name = 'probs',
                              metal = metal,
                              dist = dist)
 
-plt.imshow(density_field, cmap = plt.cm.cubehelix)
+A_mean, A_sdev = running_mean_sdev(density_field, nline = 40)
+
+Mean   = density_field-A_mean
+Desvio = (density_field-A_mean)/A_sdev
+
+view_xmin = min(star_gal_b)
+view_xmax = max(star_gal_b)
+view_ymin = min(star_gal_l)
+view_ymax = max(star_gal_l)
+
+plt.subplots(nrows=3, ncols=1,figsize=(18,14))
+plt.subplots_adjust(left  = 0.1,right = 0.94,bottom = 0.1,top = 0.9,wspace = 0.15,hspace = 0.2)
+
+plt.subplot2grid((1, 3), (0,0))
+plt.imshow(density_field, cmap = plt.cm.cubehelix, extent=[view_xmin, view_xmax, view_ymin, view_ymax])
 plt.yscale('linear')
 plt.ylabel("latitude", fontsize=12)
 plt.xlabel("longitude", fontsize=12)
 plt.title('Filtro')
 plt.grid(True)
 plt.minorticks_on()
+
+plt.subplot2grid((1, 3), (0, 1))
+plt.imshow(Mean, cmap = plt.cm.cubehelix, extent=[view_xmin, view_xmax, view_ymin, view_ymax])
+#plt.yscale('Filtro')
+plt.ylabel("latitude", fontsize=12)
+plt.xlabel("longitude", fontsize=12)
+plt.title('Mean')
+plt.grid(True)
+plt.minorticks_on()
+
+plt.subplot2grid((1, 3), (0,2))
+plt.imshow(Desvio, cmap = plt.cm.cubehelix, extent=[view_xmin, view_xmax, view_ymin, view_ymax])
+#plt.yscale('linear')
+plt.ylabel("latitude", fontsize=12)
+plt.xlabel("longitude", fontsize=12)
+plt.title('desvio')
+plt.grid(True)
+plt.minorticks_on()
+
 plt.show()
+
+
+#plt.savefig('figureb.png', format='png')
+#plt.cla()
+#plt.clf()
+#plt.close()
