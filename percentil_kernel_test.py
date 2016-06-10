@@ -23,7 +23,7 @@ def get_name_probs(base_name, gal_l, gal_b, age, metal, dist):
     :type       dist: float
     :rtype          : string
     """
-    return (base_name+'_l{}_b{}_age{:.1f}e9_Z{:.4f}_d{:.0f}kpc.dat'.format(gal_l, gal_b, age/1e9, metal, dist/1e3))
+    return (base_name+'_l{}_b{}_age{:.1f}e9_Z{}_d{:.0f}kpc.dat'.format(gal_l, gal_b, age/1e9, metal, dist/1e3))
 
 def field_kernel(probs_base_name, 
                  probs_path,
@@ -79,7 +79,7 @@ def field_kernel(probs_base_name,
                 if (star_probs[filter_else][i] > percentils[j-1]) and (star_probs[filter_else][i] <= percentils[j]):
                     star_kernel[i] = kernels[j]
 
-    print star_kernel
+    #print star_kernel
     # Background
     hbg, xbg, ybg, pbg = plt.hist2d(star_gal_l[filter_min], star_gal_b[filter_min], bins = bins)
     density_field_bg = ndimage.gaussian_filter(hbg, kernel_bg)
@@ -101,62 +101,89 @@ def field_kernel(probs_base_name,
 
 gal_l = 90
 gal_b = 40
-age = 12e9
-metal = 0.0001
-dist = 20e3
+isoc_ages = [1e9,3e9,5e9,7e9,9e9,11e9,13e9]#,9e9,10e9]
+isoc_metal = [0.00015,0.0005,0.0015,0.005,0.015]#,0.02,0.03]
+d_seq = [20000,25000,30000,40000,45000,60000,90000,100000,140000,150000,160000]
+save_path = '/home/hperottoni/Documentos/Trabalhos_andamento/caca_fantasmas/MaGIK-edicao1/canes/'
 
-density_field,star_gal_b,star_gal_l = field_kernel(probs_base_name = 'probs',
-                             probs_path = '',
-                             gal_l = gal_l,
-                             gal_b = gal_b,
-                             age = age,
-                             metal = metal,
-                             dist = dist)
+Nlines = len(isoc_ages)*len(isoc_metal)*len(d_seq)
+results = np.zeros((Nlines, 11))
 
-A_mean, A_sdev = running_mean_sdev(density_field, nline = 40)
+line = 0
 
-Mean   = density_field-A_mean
-Desvio = (density_field-A_mean)/A_sdev
+for age in isoc_ages: # for each age
+    for metal in isoc_metal: # for each metallicity  
+        for dist in d_seq:
 
-view_xmin = min(star_gal_b)
-view_xmax = max(star_gal_b)
-view_ymin = min(star_gal_l)
-view_ymax = max(star_gal_l)
+            results[line, 0] = gal_l
+            results[line, 1] = gal_b
+            results[line, 2] = age
+            results[line, 3] = metal
+            results[line, 4] = dist
 
-plt.subplots(nrows=3, ncols=1,figsize=(18,14))
-plt.subplots_adjust(left  = 0.1,right = 0.94,bottom = 0.1,top = 0.9,wspace = 0.15,hspace = 0.2)
+            density_field,star_gal_b,star_gal_l = field_kernel(probs_base_name = 'probs',
+                                         probs_path = '/home/hperottoni/Documentos/Trabalhos_andamento/caca_fantasmas/MaGIK-edicao1/canes/',
+                                         gal_l = gal_l,
+                                         gal_b = gal_b,
+                                         age = age,
+                                         metal = metal,
+                                         dist = dist)
 
-plt.subplot2grid((1, 3), (0,0))
-plt.imshow(density_field, cmap = plt.cm.cubehelix, extent=[view_xmin, view_xmax, view_ymin, view_ymax])
-plt.yscale('linear')
-plt.ylabel("latitude", fontsize=12)
-plt.xlabel("longitude", fontsize=12)
-plt.title('Filtro')
-plt.grid(True)
-plt.minorticks_on()
+            A_mean, A_sdev = running_mean_sdev(density_field, nline = 40)
 
-plt.subplot2grid((1, 3), (0, 1))
-plt.imshow(Mean, cmap = plt.cm.cubehelix, extent=[view_xmin, view_xmax, view_ymin, view_ymax])
-#plt.yscale('Filtro')
-plt.ylabel("latitude", fontsize=12)
-plt.xlabel("longitude", fontsize=12)
-plt.title('Mean')
-plt.grid(True)
-plt.minorticks_on()
+            Mean   = density_field-A_mean
+            Desvio = (density_field-A_mean)/A_sdev
 
-plt.subplot2grid((1, 3), (0,2))
-plt.imshow(Desvio, cmap = plt.cm.cubehelix, extent=[view_xmin, view_xmax, view_ymin, view_ymax])
-#plt.yscale('linear')
-plt.ylabel("latitude", fontsize=12)
-plt.xlabel("longitude", fontsize=12)
-plt.title('desvio')
-plt.grid(True)
-plt.minorticks_on()
+            view_xmin = min(star_gal_b)
+            view_xmax = max(star_gal_b)
+            view_ymin = min(star_gal_l)
+            view_ymax = max(star_gal_l)
 
-plt.show()
+            plt.subplots(nrows=3, ncols=1,figsize=(18,14))
+            plt.subplots_adjust(left  = 0.1,right = 0.94,bottom = 0.1,top = 0.9,wspace = 0.15,hspace = 0.2)
 
+            plt.subplot2grid((1, 3), (0,0))
+            plt.imshow(density_field, cmap = plt.cm.cubehelix, extent=[view_xmin, view_xmax, view_ymin, view_ymax])
+            plt.yscale('linear')
+            plt.ylabel("latitude", fontsize=12)
+            plt.xlabel("longitude", fontsize=12)
+            plt.title('Filtro')
+            plt.grid(True)
+            plt.minorticks_on()
 
-#plt.savefig('figureb.png', format='png')
-#plt.cla()
-#plt.clf()
-#plt.close()
+            plt.subplot2grid((1, 3), (0, 1))
+            plt.imshow(Mean, cmap = plt.cm.cubehelix, extent=[view_xmin, view_xmax, view_ymin, view_ymax])
+            #plt.yscale('Filtro')
+            plt.ylabel("latitude", fontsize=12)
+            plt.xlabel("longitude", fontsize=12)
+            plt.title('Mean')
+            plt.grid(True)
+            plt.minorticks_on()
+
+            plt.subplot2grid((1, 3), (0,2))
+            plt.imshow(Desvio, cmap = plt.cm.cubehelix, extent=[view_xmin, view_xmax, view_ymin, view_ymax])
+            #plt.yscale('linear')
+            plt.ylabel("latitude", fontsize=12)
+            plt.xlabel("longitude", fontsize=12)
+            plt.title('desvio')
+            plt.grid(True)
+            plt.minorticks_on()
+
+            #plt.show()
+
+            save_filename = save_path+'density_l{0}_b{1}_age{2}e9_Z{3}_d{4}kpc.png'.format(gal_l,gal_b,age/1e9,metal,dist/1000)
+            plt.savefig(save_filename, format='png')
+            plt.cla()
+            plt.clf()
+            plt.close()
+
+            line = line + 1
+
+            results[line, 5]= density_field.max()
+            results[line, 6]= density_field.min()
+            results[line, 7]= Mean.max()
+            results[line, 8]= Mean.min()
+            results[line, 9]= Desvio.max()
+            results[line, 10]= Desvio.min()
+
+np.savetxt(save_path+'results.dat', results, delimiter = ',')
