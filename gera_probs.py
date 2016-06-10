@@ -15,7 +15,7 @@ def get_name_iso(base_name,age,metal):
 	:return		: isochronal name
 	:rtype		: string
 	"""
-	return(base_name+'_Z{:.4f}_t{:.2f}e9.dat'.format(metal, age/1e9))
+	return(base_name+'_Z{}_t{:.1f}e9.dat'.format(metal, age/1e9))
 		
 def get_name_field(base_name,l,b):
 	"""
@@ -36,11 +36,11 @@ def get_name_field(base_name,l,b):
 # Parameters  Iso#
 ############################################
 
-isoc_ages = [12e9]#,9e9,10e9]
-isoc_metal = [0.0001]#,0.02,0.03]
-d_seq = [20000,60000]
-isoc_path = '/'
-isoc_base_name = 'isoc'
+isoc_ages = [1e9,3e9,5e9,7e9,9e9,11e9,13e9]#,9e9,10e9]
+isoc_metal = [0.00015,0.0005,0.0015,0.005,0.015]#,0.02,0.03]
+d_seq = [20000,25000,30000,40000,45000,60000,90000,100000,140000,150000,160000]
+isoc_path = '/home/hperottoni/Documentos/Trabalhos_andamento/caca_fantasmas/MaGIK-edicao1/isocs/'
+isoc_base_name = 'iso_magik'
 
 #####################
 # Parameters  fields#
@@ -48,13 +48,13 @@ isoc_base_name = 'isoc'
 
 gal_l = [90]
 gal_b = [40]
-field_path = '/'
-field_base_name = 'field'
+field_path = '/home/hperottoni/Documentos/Trabalhos_andamento/caca_fantasmas/MaGIK-edicao1/canes/'
+field_base_name = 'canes'
 
 #####################
 # Save to#
 ############################################
-save_path = ''
+save_path = '/home/hperottoni/Documentos/Trabalhos_andamento/caca_fantasmas/MaGIK-edicao1/canes/'
 
 def get_probs(isoc_path, isoc_base_name, isoc_ages, isoc_metal, d_seq, field_path, field_base_name, gal_l, gal_b, save_path):
     """
@@ -89,11 +89,11 @@ def get_probs(isoc_path, isoc_base_name, isoc_ages, isoc_metal, d_seq, field_pat
     
     for lon in gal_l: # for each given longitude
         for lat in gal_b: # for each given latitude
-             
+       
             # Load field data
             field_name = get_name_field(field_base_name, l = lon, b = lat)
             # TODO: dar um jeito de permitir que os argumentos de np.loadtxt sejam passados nos argumentos da funcao
-            field_data = np.loadtxt(field_name, delimiter = ",", skiprows = 1)
+            field_data = np.loadtxt(field_path+field_name, delimiter = ",", skiprows = 1)
              
             obj_lon = field_data[:,1]
             obj_lat = field_data[:,2]
@@ -109,11 +109,11 @@ def get_probs(isoc_path, isoc_base_name, isoc_ages, isoc_metal, d_seq, field_pat
             obj_cor_gi = obj_mag_g - obj_mag_i
              
             # Adopting a color error
-            obj_mag_r_err = obj_mag_r_err/2 # TODO: descobrir porque estamos usando isso
-            obj_cor_gr_err = 0.15*obj_mag_r_err
+            obj_mag_r_err = obj_mag_r_err/4 # TODO: descobrir porque estamos usando isso
+            obj_cor_gr_err = 0.1*obj_mag_r_err
              
-            obj_mag_i_err = obj_mag_i_err/2 # TODO: descobrir porque estamos usando isso
-            obj_cor_gi_err = 0.15*obj_mag_i_err
+            obj_mag_i_err = obj_mag_i_err/4 # TODO: descobrir porque estamos usando isso
+            obj_cor_gi_err = 0.1*obj_mag_i_err
              
             # Removing stars with high magnitude error
             # TODO: fazer este passo diretamente em field_data para nao ter que escrever linha por linha
@@ -136,7 +136,7 @@ def get_probs(isoc_path, isoc_base_name, isoc_ages, isoc_metal, d_seq, field_pat
                      	    
             	    # Load isochrone file
             	    isoc_name = get_name_iso(isoc_base_name,age,metal)
-            	    isoc_data = np.loadtxt(isoc_name) # TODO: dar um jeito de poder passar argumentos para esta funcao
+            	    isoc_data = np.loadtxt(isoc_path+isoc_name) # TODO: dar um jeito de poder passar argumentos para esta funcao
                      	    
             	    isoc_mass = isoc_data[:,2]
             	    isoc_mag_g = isoc_data[:,9]
@@ -211,10 +211,10 @@ def get_probs(isoc_path, isoc_base_name, isoc_ages, isoc_metal, d_seq, field_pat
                         np.savetxt(save_filename, save_data, delimiter = ',')
 						
                         # Plotting data
-                        plt.scatter(obj_cor_gr, obj_mag_r, c = np.log(Probs_gr_r), cmap = cm.jet, marker='o')
-                        plt.plot(isoc_cor_gr, isoc_mag_r_dist)
-                        plt.gca().invert_yaxis()
-                        plt.show()
+#                        plt.scatter(obj_cor_gr, obj_mag_r, c = np.log(Probs_gr_r), cmap = cm.jet, marker='o')
+#                        plt.plot(isoc_cor_gr, isoc_mag_r_dist)
+#                        plt.gca().invert_yaxis()
+#                        plt.show()
 
 get_probs(  isoc_path=isoc_path, 
             isoc_base_name=isoc_base_name, 
